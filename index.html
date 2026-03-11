@@ -246,9 +246,9 @@
         let reqId;
         const updateScale = () => {
           if (!containerRef.current || !contentRef.current) return;
-          // 余白計算を減らし、コンテナの幅・高さいっぱいに広げる
-          const availableW = containerRef.current.clientWidth - 24;
-          const availableH = containerRef.current.clientHeight - 24;
+          // 幅と高さの両方から利用可能エリアを取得
+          const availableW = containerRef.current.clientWidth - 40;
+          const availableH = containerRef.current.clientHeight - 40;
           const firstChild = contentRef.current.firstElementChild;
           if (!firstChild) return;
           
@@ -256,6 +256,7 @@
           const originalH = firstChild.offsetHeight;
 
           if (originalW > 10 && originalH > 10 && availableW > 10 && availableH > 10) {
+            // 幅と高さの比率を計算し、全体が収まるように小さい方を採用
             const scaleW = availableW / originalW;
             const scaleH = availableH / originalH;
             let s = Math.min(scaleW, scaleH);
@@ -301,10 +302,9 @@
 
       return (
         <div ref={wrapperRef} className="absolute inset-0 bg-transparent overflow-hidden">
-          {/* コンテナ自体の余白(padding)を減らす */}
           <div ref={(el) => { containerRef.current = el; if (scrollContainerRef) scrollContainerRef.current = el; }} 
                onScroll={onScroll}
-               className="w-full h-full overflow-auto relative hide-scrollbar p-3 md:p-4" 
+               className="w-full h-full overflow-auto relative hide-scrollbar p-6" 
                style={{ direction: 'rtl' }}>
             <div style={{ direction: 'ltr' }} className="flex-shrink-0 w-max h-max mx-auto">
               <div style={{ width: dims.w > 0 ? dims.w * scale : '100%', height: dims.h > 0 ? dims.h * scale : '100%', position: 'relative' }}>
@@ -471,8 +471,7 @@
         const renderLen = pageCount * linesPerPage;
 
         return (
-            /* 原稿用紙内側の余白(padding)を減らす */
-            <div className="flex flex-row-reverse p-5 md:p-6 gap-8 font-kyokasho w-max text-bluegrey">
+            <div className="flex flex-row-reverse p-10 gap-8 font-kyokasho w-max text-bluegrey">
                 <div className="flex flex-row-reverse border-y border-genkoStrong bg-white/40">
                     {Array.from({ length: renderLen }).map((_, i) => {
                         return (
@@ -699,6 +698,7 @@
             <div className="h-screen w-full flex flex-col font-rounded bg-cork">
                 <Header onSettingClick={() => setSettingsModalOpen(true)} />
                 
+                {/* gridの幅を変更し、入力エリアの幅を広く確保 */}
                 <main className="flex-1 grid grid-cols-1 md:grid-cols-[450px_1fr] lg:grid-cols-[550px_1fr] xl:grid-cols-[600px_1fr] md:grid-rows-[1fr_auto] p-3 md:p-5 gap-3 md:gap-5 overflow-hidden h-full no-print">
                     
                     {/* 入力エリア */}
@@ -709,6 +709,7 @@
                             </div>
                             <InputField name="title" value={doc.title} onChange={handleChange} placeholder="だいめい" className="w-full mb-3 text-lg" />
                             <div className="flex gap-3">
+                                {/* がくねんの幅を広げ、プレースホルダーを明示的に */}
                                 <InputField name="class" value={doc.class} onChange={handleChange} placeholder="がくねん・くみ" className="w-[140px] shrink-0 text-base" />
                                 <InputField name="name" value={doc.name} onChange={handleChange} placeholder="なまえ" className="flex-1 text-base" />
                             </div>
@@ -736,8 +737,8 @@
 
                     {/* プレビューエリア */}
                     <div className="order-2 md:col-start-2 md:row-start-1 md:row-span-2 bg-paper rounded-2xl md:rounded-[2rem] shadow-card border-[3px] border-white flex flex-col overflow-hidden relative min-w-0 min-h-[40vh] md:min-h-0">
-                        <div className="absolute top-3 right-3 md:top-4 md:right-4 z-20">
-                            <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl font-bold text-white bg-sage hover:bg-sage/90 transition-all active:translate-y-1 shadow-button active:shadow-button-active flex items-center gap-2 leading-none border-2 border-white/20 backdrop-blur-sm">
+                        <div className="absolute top-3 right-3 md:top-5 md:right-5 z-20">
+                            <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl font-bold text-white bg-sage hover:bg-sage/90 transition-all active:translate-y-1 shadow-button active:shadow-button-active flex items-center gap-2 leading-none border-2 border-white/20">
                                 <Icon name="printer" className="w-5 h-5 -mt-0.5" /><span className="text-base pt-0.5"><Rb t="印刷" r="いんさつ"/>する</span>
                             </button>
                         </div>
