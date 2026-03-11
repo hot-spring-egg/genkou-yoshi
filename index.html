@@ -234,7 +234,7 @@
       );
     };
 
-    // プレビュー領域を画面サイズに合わせて自動縮小するラッパー
+    // プレビュー領域を画面サイズ（幅・高さ）に合わせて自動縮小するラッパー
     const ScalableWrapper = ({ children, scrollContainerRef, onScroll }) => {
         const wrapperRef = useRef(null);
         const containerRef = useRef(null); 
@@ -246,6 +246,8 @@
         let reqId;
         const updateScale = () => {
           if (!containerRef.current || !contentRef.current) return;
+          // 幅と高さの両方から利用可能エリアを取得
+          const availableW = containerRef.current.clientWidth - 40;
           const availableH = containerRef.current.clientHeight - 40;
           const firstChild = contentRef.current.firstElementChild;
           if (!firstChild) return;
@@ -253,8 +255,12 @@
           const originalW = firstChild.offsetWidth; 
           const originalH = firstChild.offsetHeight;
 
-          if (originalH > 10 && availableH > 10) {
-            let s = availableH / originalH;
+          if (originalW > 10 && originalH > 10 && availableW > 10 && availableH > 10) {
+            // 幅と高さの比率を計算し、全体が収まるように小さい方を採用
+            const scaleW = availableW / originalW;
+            const scaleH = availableH / originalH;
+            let s = Math.min(scaleW, scaleH);
+            
             if (s > 3) s = 3; 
             if (s < 0.1) s = 0.1;
             
@@ -274,7 +280,6 @@
         return () => { observer.disconnect(); cancelAnimationFrame(reqId); };
       }, [children]);
 
-      // 縦・横どちらのスクロール操作でも、プレビュー画面を横スクロールさせる
       useEffect(() => {
         const wrapper = wrapperRef.current;
         const container = containerRef.current;
@@ -693,7 +698,8 @@
             <div className="h-screen w-full flex flex-col font-rounded bg-cork">
                 <Header onSettingClick={() => setSettingsModalOpen(true)} />
                 
-                <main className="flex-1 grid grid-cols-1 md:grid-cols-[380px_1fr] lg:grid-cols-[420px_1fr] md:grid-rows-[1fr_auto] p-3 md:p-5 gap-3 md:gap-5 overflow-hidden h-full no-print">
+                {/* gridの幅を変更し、入力エリアの幅を広く確保 */}
+                <main className="flex-1 grid grid-cols-1 md:grid-cols-[450px_1fr] lg:grid-cols-[550px_1fr] xl:grid-cols-[600px_1fr] md:grid-rows-[1fr_auto] p-3 md:p-5 gap-3 md:gap-5 overflow-hidden h-full no-print">
                     
                     {/* 入力エリア */}
                     <div className="order-1 md:col-start-1 md:row-start-1 bg-paper rounded-2xl md:rounded-[2rem] shadow-card border-[3px] border-white flex flex-col overflow-hidden min-h-[25vh] md:min-h-0 z-10">
@@ -703,7 +709,8 @@
                             </div>
                             <InputField name="title" value={doc.title} onChange={handleChange} placeholder="だいめい" className="w-full mb-3 text-lg" />
                             <div className="flex gap-3">
-                                <InputField name="class" value={doc.class} onChange={handleChange} placeholder="がくねん" className="w-1/3 text-base" />
+                                {/* がくねんの幅を広げ、プレースホルダーを明示的に */}
+                                <InputField name="class" value={doc.class} onChange={handleChange} placeholder="がくねん・くみ" className="w-[140px] shrink-0 text-base" />
                                 <InputField name="name" value={doc.name} onChange={handleChange} placeholder="なまえ" className="flex-1 text-base" />
                             </div>
                         </div>
@@ -714,7 +721,7 @@
                                 onScroll={handleTextareaScroll}
                                 name="content" value={doc.content} onChange={handleChange}
                                 placeholder="ここをクリックして、さくぶんをかいてください..."
-                                className="w-full h-full resize-none border-none p-4 md:p-6 text-xl focus:outline-none text-bluegrey leading-[2.5rem] bg-transparent hide-scrollbar transition-colors font-kyokasho"
+                                className="w-full h-full resize-none border-none p-6 text-xl focus:outline-none text-bluegrey leading-[2.5rem] bg-transparent hide-scrollbar transition-colors font-kyokasho"
                                 style={{ 
                                     backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 2px), rgba(255,255,255,0.8) calc(100% - 2px))',
                                     backgroundSize: '100% 2.5rem',
