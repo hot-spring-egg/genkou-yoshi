@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="favicon.png">
+  <title>オンライン原稿用紙 Lite</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- React & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            terracotta: '#E07A5F', // 強調・アクセント
+            sage: '#81B29A',       // 成功・進む
+            bluegrey: '#3D405B',   // ヘッダー・文字色
+            cream: '#F4F1DE',      // コンテンツ背景
+            mustard: '#F2CC8F',    // 警告・注意
+            genkoLine: 'rgba(129, 178, 154, 0.5)', // sageベースの罫線
+            genkoStrong: 'rgba(129, 178, 154, 0.9)', // sageベースの濃い罫線
+          },
+          fontFamily: {
+            rounded: ['"M PLUS Rounded 1c"', 'sans-serif'],
+            kyokasho: ['"UD Digi Kyokasho N-B"', '"UD デジタル 教科書体 N-B"', '"Klee One"', 'serif'],
+          },
+          boxShadow: {
+            'button': '0 4px 0 0 rgba(0,0,0,0.15)',
+            'button-active': '0 1px 0 0 rgba(0,0,0,0.15)',
+            'card': '0 8px 24px -4px rgba(61, 64, 91, 0.1)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* 北欧文房具風の背景スタイル */
+    .bg-cork {
+      background-color: #d0a57b;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.15'/%3E%3C/svg%3E");
+    }
+    .bg-paper {
+      background-color: #F4F1DE;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+    }
+
+    /* カスタムスクロールバー */
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(129, 178, 154, 0.5); border-radius: 5px; border: 2px solid #F4F1DE; }
+
+    .vertical-rl { writing-mode: vertical-rl; text-orientation: mixed; }
+
+    /* モーダルアニメーション */
+    @keyframes modalFadeIn { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+    .animate-modal { animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+    /* SweetAlert2のデザイン上書き（北欧カラー） */
+    .swal2-popup { font-family: 'M PLUS Rounded 1c', sans-serif !important; background-color: #F4F1DE !important; border-radius: 1.5rem !important; border: 2px solid #fff; box-shadow: 0 10px 25px rgba(61, 64, 91, 0.2) !important; }
+    .swal2-title, .swal2-html-container { color: #3D405B !important; }
+    .swal2-confirm { background-color: #E07A5F !important; border-radius: 0.75rem !important; box-shadow: 0 4px 0 0 rgba(0,0,0,0.15) !important; font-weight: bold !important; padding: 0.75rem 1.5rem !important; }
+    .swal2-confirm:active { transform: translateY(2px) !important; box-shadow: 0 1px 0 0 rgba(0,0,0,0.15) !important; }
+    .swal2-cancel { background-color: #3D405B !important; border-radius: 0.75rem !important; box-shadow: 0 4px 0 0 rgba(0,0,0,0.15) !important; font-weight: bold !important; padding: 0.75rem 1.5rem !important; }
+    .swal2-cancel:active { transform: translateY(2px) !important; box-shadow: 0 1px 0 0 rgba(0,0,0,0.15) !important; }
+
+    /* 印刷用CSS */
+    @media screen {
+        .print-only { display: none !important; }
+    }
+    @media print {
+        body { background: white; margin: 0; padding: 0; font-family: "UD Digi Kyokasho N-B", "UD デジタル 教科書体 N-B", "Klee One", serif; color: #3D405B; }
+        body > #root > div > .no-print { display: none !important; }
+        body > #root > div > .print-only { display: block !important; position: absolute; left: 0; top: 0; width: 100%; background: white; z-index: 9999; }
+        @page { size: A4 landscape; margin: 0; }
+        
+        .print-page {
+            width: 297mm; height: 210mm;
+            page-break-after: always;
+            position: relative;
+            box-sizing: border-box;
+            padding: 10mm;
+            background: white;
+        }
+        .print-layout-grid {
+            width: 100%; height: 100%;
+            display: grid;
+            grid-template-columns: 1fr 16mm 1fr;
+            border: 2px solid #81B29A;
+        }
+        .print-gyobi-area {
+            border-left: 1px solid #81B29A;
+            border-right: 1px solid #81B29A;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: #81B29A;
+        }
+        .gyobi-content {
+            writing-mode: vertical-rl; display: flex; align-items: center; gap: 10mm;
+        }
+        .gyobi-mark {
+            border: 1px solid #81B29A; width: 6mm; height: 10mm; border-radius: 50% 50% 0 0; margin-bottom: 5mm;
+        }
+        .print-half-grid { display: flex; flex-direction: row-reverse; }
+        .print-line {
+            flex: 1; display: flex; flex-direction: column; border-left: 1px solid rgba(129, 178, 154, 0.4);
+        }
+        .print-half-grid.right-side .print-line:first-child { border-right: none; }
+        .print-half-grid.left-side .print-line:first-child { border-right: none; }
+        .print-cell {
+            flex: 1; border-bottom: 1px solid rgba(129, 178, 154, 0.4);
+            display: flex; align-items: center; justify-content: center; position: relative;
+            writing-mode: vertical-rl; text-orientation: mixed;
+        }
+        .hanging-chars-print {
+            position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+            white-space: nowrap; writing-mode: vertical-rl; font-size: 0.6em;
+            margin-top: -2mm; line-height: 1;
+        }
+    }
+  </style>
+</head>
+<body class="selection:bg-mustard selection:text-bluegrey text-bluegrey overflow-hidden print:overflow-visible font-rounded bg-cork">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+    const STORAGE_KEY = 'genko_lite_v3';
+
+    // ==========================================
+    // アイコンコンポーネント (Lucide互換SVG)
+    // ==========================================
+    const Icon = ({ name, className = "w-6 h-6" }) => {
+        const strokeW = "2.5";
+        const icons = {
+            'pen-line': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
+            'settings': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
+            'printer': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>,
+            'file-plus': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>,
+            'folder-open': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg>,
+            'download': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+            'x': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+            'user': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        };
+        return icons[name] || null;
+    };
+
+    // ==========================================
+    // ユーティリティ・共通コンポーネント
+    // ==========================================
+
+    // 小学生向けルビコンポーネント
+    const Rb = ({ t, r }) => (
+      <ruby className="relative inline-block text-center align-baseline leading-none">
+        {t}<rt className="absolute bottom-full left-1/2 -translate-x-1/2 whitespace-nowrap text-[0.6em] text-inherit opacity-70 pointer-events-none mb-[0.1em] font-medium tracking-normal" style={{ letterSpacing: 'normal' }}>{r}</rt>
+      </ruby>
+    );
+
+    // 入力フィールド（全角数字を自動で半角にする）
+    const InputField = ({ value, onChange, name, placeholder, className = '' }) => {
+        const handleChange = (e) => {
+            const val = e.target.value.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+            onChange({ target: { name, value: val } });
+        };
+        return (
+            <input
+                type="text"
+                name={name}
+                value={value}
+                onChange={handleChange}
+                placeholder={placeholder}
+                className={`px-4 py-3 border-2 border-white rounded-xl outline-none focus:border-sage focus:ring-2 focus:ring-sage/30 font-bold transition-all bg-white/70 backdrop-blur-sm text-bluegrey min-h-[48px] shadow-sm ${className}`}
+            />
+        );
+    }
+
+    // メインボタンコンポーネント
+    const MainButton = ({ onClick, color = 'sage', icon, children, className = '' }) => {
+        const colorClass = 
+            color === 'terracotta' ? 'bg-terracotta text-white' : 
+            color === 'sage' ? 'bg-sage text-white' : 
+            color === 'bluegrey' ? 'bg-bluegrey text-white' : 
+            'bg-mustard text-bluegrey'; // mustard は明るいので文字色を濃く
+            
+        return (
+            <button
+                onClick={onClick}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-lg transition-all transform active:translate-y-1 shadow-button active:shadow-button-active min-h-[56px] ${colorClass} ${className}`}
+            >
+                {icon && <Icon name={icon} className="w-6 h-6 shrink-0" />}
+                <span className="pt-0.5">{children}</span>
+            </button>
+        );
+    }
+
+    // 共通モーダルコンポーネント
+    const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-md' }) => {
+      useEffect(() => {
+        const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+        if (isOpen) window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+      }, [isOpen, onClose]);
+
+      if (!isOpen) return null;
+      return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-bluegrey/60 backdrop-blur-sm p-4 no-print">
+          <div className={`bg-paper rounded-3xl shadow-2xl w-full ${maxWidth} flex flex-col overflow-hidden transform transition-all animate-modal border-[3px] border-white`}>
+            <div className="flex justify-between items-center p-4 sm:p-5 border-b-2 border-white/50 bg-cream/50">
+              <h3 className="font-bold text-xl text-bluegrey pt-1">{title}</h3>
+              <button onClick={onClose} className="p-2 hover:bg-mustard/40 rounded-full text-bluegrey transition-all active:scale-90">
+                <Icon name="x" className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-4 sm:p-6">{children}</div>
+          </div>
+        </div>
+      );
+    };
+
+    // プレビュー領域を画面サイズに合わせて自動縮小するラッパー
+    const ScalableWrapper = ({ children, scrollContainerRef, onScroll }) => {
+        const wrapperRef = useRef(null);
+        const containerRef = useRef(null); 
+        const contentRef = useRef(null);
+        const [scale, setScale] = useState(1);
+        const [dims, setDims] = useState({ w: 0, h: 0 });
+
+      useEffect(() => {
+        let reqId;
+        const updateScale = () => {
+          if (!containerRef.current || !contentRef.current) return;
+          const availableH = containerRef.current.clientHeight - 40;
+          const firstChild = contentRef.current.firstElementChild;
+          if (!firstChild) return;
+          
+          const originalW = firstChild.offsetWidth; 
+          const originalH = firstChild.offsetHeight;
+
+          if (originalH > 10 && availableH > 10) {
+            let s = availableH / originalH;
+            if (s > 3) s = 3; 
+            if (s < 0.1) s = 0.1;
+            
+            setDims(prev => {
+              if (prev.w !== originalW || prev.h !== originalH) return { w: originalW, h: originalH };
+              return prev;
+            });
+            setScale(s);
+          }
+        };
+
+        const observer = new ResizeObserver(() => { reqId = requestAnimationFrame(updateScale); });
+        if (containerRef.current) observer.observe(containerRef.current);
+        if (contentRef.current && contentRef.current.firstElementChild) observer.observe(contentRef.current.firstElementChild);
+
+        updateScale(); setTimeout(updateScale, 100);
+        return () => { observer.disconnect(); cancelAnimationFrame(reqId); };
+      }, [children]);
+
+      // 縦・横どちらのスクロール操作でも、プレビュー画面を横スクロールさせる
+      useEffect(() => {
+        const wrapper = wrapperRef.current;
+        const container = containerRef.current;
+        if (!wrapper || !container) return;
+
+        const handleWheel = (e) => {
+          if (e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault(); 
+          let scrollAmount = 0;
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollAmount = -e.deltaY;
+          else scrollAmount = e.deltaX;
+
+          if (typeof container.scrollBy === 'function') container.scrollBy({ left: scrollAmount, behavior: 'auto' });
+          else container.scrollLeft += scrollAmount;
+        };
+
+        wrapper.addEventListener('wheel', handleWheel, { passive: false });
+        return () => wrapper.removeEventListener('wheel', handleWheel);
+      }, []);
+
+      return (
+        <div ref={wrapperRef} className="absolute inset-0 bg-transparent overflow-hidden">
+          <div ref={(el) => { containerRef.current = el; if (scrollContainerRef) scrollContainerRef.current = el; }} 
+               onScroll={onScroll}
+               className="w-full h-full overflow-auto relative hide-scrollbar p-6" 
+               style={{ direction: 'rtl' }}>
+            <div style={{ direction: 'ltr' }} className="flex-shrink-0 w-max h-max mx-auto">
+              <div style={{ width: dims.w > 0 ? dims.w * scale : '100%', height: dims.h > 0 ? dims.h * scale : '100%', position: 'relative' }}>
+                <div ref={contentRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top right', position: 'absolute', top: 0, right: 0 }} className="shadow-card rounded-md bg-paper inline-block border-2 border-white">
+                  {children}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ==========================================
+    // カスタムフック (原稿用紙ロジック)
+    // ==========================================
+
+    const useGenkoParser = (doc, settings) => {
+        return useMemo(() => {
+            const chars = settings.charsPerLine;
+            const kinsokuMode = settings.kinsokuMode || 'burasagari';
+            const lines = [];
+            
+            const titleParas = (doc.title || '').split('\n');
+            titleParas.forEach(p => {
+                if(!p && lines.length === 0) return;
+                let line = Array(chars).fill('');
+                let cursor = 2;
+                p.split('').forEach(c => {
+                    if(cursor >= chars) { lines.push(line); line = Array(chars).fill(''); cursor = 0; }
+                    line[cursor++] = c;
+                });
+                lines.push(line);
+            });
+            if(lines.length === 0 || (doc.title && lines.length > 0)) lines.push(Array(chars).fill(''));
+
+            const footerText = (`${doc.class || ''} ${doc.name || ''}`).trim();
+            if(footerText) {
+                let line = Array(chars).fill('');
+                let start = Math.max(0, chars - footerText.length - 1);
+                footerText.split('').forEach((c, i) => { if(start + i < chars) line[start + i] = c; });
+                lines.push(line);
+                lines.push(Array(chars).fill(''));
+            }
+
+            const noStart = ['、','。','」','』','）','っ','ゃ','ゅ','ょ','ッ','ャ','ュ','ョ','ー',',','.','」','』',']','}','>','ぁ','ぃ','ぅ','ぇ','ぉ','ァ','ィ','ゥ','ェ','ォ','ヮ','ヵ','ヶ','・','？','！','‼','⁇','々'];
+            const noEnd = ['「', '『', '（', '(', '[', '{', '<', '【', '〔', '［'];
+            const compressionPairs = ['。」', '。』', '。）', '、」', '、』', '、）', '！』', '！」', '？』', '？」'];
+            
+            (doc.content || '').split('\n').forEach(p => {
+                if(!p) { lines.push(Array(chars).fill('')); return; }
+                let line = [];
+                const pChars = p.split('');
+                let i = 0;
+                
+                while(i < pChars.length) {
+                    let char = pChars[i];
+                    if (i < pChars.length - 1) {
+                        const pair = char + pChars[i+1];
+                        if (compressionPairs.includes(pair)) { char = pair; i++; }
+                    }
+                    if (line.length === chars - 1) {
+                        if (noEnd.includes(char.charAt(0))) {
+                            lines.push(line); line = []; line.push(char); i++; continue;
+                        }
+                    }
+                    
+                    line.push(char); i++;
+                    
+                    if (line.length >= chars) {
+                        if (kinsokuMode === 'oidashi') {
+                            if (i < pChars.length) {
+                                let nextUnit = pChars[i];
+                                if (i < pChars.length - 1) {
+                                    const nextPair = pChars[i] + pChars[i+1];
+                                    if (compressionPairs.includes(nextPair)) nextUnit = nextPair;
+                                }
+                                if (noStart.includes(nextUnit.charAt(0))) {
+                                    const kicked = line.pop();
+                                    lines.push(line);
+                                    line = [kicked];
+                                    continue;
+                                }
+                            }
+                            lines.push(line); line = [];
+                        } else {
+                            while (i < pChars.length) {
+                                let nextStartChar = pChars[i];
+                                let nextUnit = nextStartChar;
+                                let step = 1;
+                                if (i < pChars.length - 1) {
+                                    const nextPair = nextStartChar + pChars[i+1];
+                                    if (compressionPairs.includes(nextPair)) { nextUnit = nextPair; step = 2; }
+                                }
+                                if (noStart.includes(nextUnit.charAt(0))) {
+                                    line.push(nextUnit); i += step;
+                                } else { break; }
+                            }
+                            lines.push(line); line = [];
+                        }
+                    }
+                }
+                if(line.length > 0) lines.push(line);
+            });
+            return lines;
+        }, [doc, settings.charsPerLine, settings.kinsokuMode]);
+    };
+
+    // ==========================================
+    // UI コンポーネント
+    // ==========================================
+
+    const Header = ({ onSettingClick }) => (
+        <nav className="bg-bluegrey text-cream px-4 md:px-6 py-3 flex justify-between items-center shrink-0 shadow-md z-10 no-print">
+            <div className="flex items-center gap-3 hover:opacity-90 transition-all cursor-pointer">
+                <div className="p-2 rounded-xl text-bluegrey shadow-sm bg-mustard flex items-center justify-center">
+                    <Icon name="pen-line" className="w-6 h-6" />
+                </div>
+                <div className="flex items-baseline gap-2">
+                    <span className="font-bold text-lg md:text-xl tracking-wide pt-1">オンライン<Rb t="原稿用紙" r="げんこうようし"/></span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold text-bluegrey shadow-sm bg-mustard relative -top-[1px]">Lite</span>
+                </div>
+            </div>
+            <button onClick={onSettingClick} className="p-2 text-cream hover:bg-white/10 rounded-full transition-all active:scale-95" title="設定">
+                <Icon name="settings" className="w-6 h-6" />
+            </button>
+        </nav>
+    );
+
+    const GenkoLine = React.memo(({ rowData, chars, cellSize, isFirst, isLast }) => {
+        return (
+            <div className={`flex flex-col flex-shrink-0 border-l border-genkoLine ${isFirst ? 'border-r border-genkoStrong' : ''} ${isLast ? 'border-l-genkoStrong' : ''}`}>
+                {Array.from({ length: chars }).map((_, j) => (
+                    <div key={j} className={`vertical-rl flex items-center justify-center border-b border-genkoLine relative flex-shrink-0 ${cellSize} ${j === chars - 1 ? 'border-b-0' : ''}`}>
+                        {rowData[j] || ''}
+                        {j === chars - 1 && rowData.length > chars && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 whitespace-nowrap vertical-rl text-[0.7em] leading-none mt-1 pointer-events-none text-bluegrey z-10">
+                                {rowData.slice(chars).join('')}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        );
+    }, (prevProps, nextProps) => {
+        if (prevProps.chars !== nextProps.chars) return false;
+        if (prevProps.cellSize !== nextProps.cellSize) return false;
+        if (prevProps.isFirst !== nextProps.isFirst) return false;
+        if (prevProps.isLast !== nextProps.isLast) return false;
+        const prevRow = prevProps.rowData || [];
+        const nextRow = nextProps.rowData || [];
+        if (prevRow.length !== nextRow.length) return false;
+        for (let i = 0; i < prevRow.length; i++) {
+            if (prevRow[i] !== nextRow[i]) return false;
+        }
+        return true;
+    });
+
+    const GenkoPaperPreview = ({ parsedGenko, settings }) => {
+        const chars = settings.charsPerLine;
+        const linesPerPage = chars === 20 ? 20 : 16;
+        const cellSize = chars === 20 ? 'w-[2.8rem] h-[2.8rem] text-[1.6rem]' : 'w-[3.6rem] h-[3.6rem] text-[2.0rem]';
+        const pageCount = Math.ceil(parsedGenko.length / linesPerPage) || 1;
+        const renderLen = pageCount * linesPerPage;
+
+        return (
+            <div className="flex flex-row-reverse p-10 gap-8 font-kyokasho w-max text-bluegrey">
+                <div className="flex flex-row-reverse border-y border-genkoStrong bg-white/40">
+                    {Array.from({ length: renderLen }).map((_, i) => {
+                        return (
+                            <GenkoLine 
+                                key={i} 
+                                rowData={parsedGenko[i] || []} 
+                                chars={chars} 
+                                cellSize={cellSize} 
+                                isFirst={i === 0} 
+                                isLast={i === renderLen - 1} 
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    const PrintGenkoView = ({ parsedGenko, settings, doc }) => {
+        const chars = settings.charsPerLine;
+        const linesPerPage = chars === 20 ? 20 : 16;
+        const halfLines = linesPerPage / 2;
+        const pageCount = Math.ceil(parsedGenko.length / linesPerPage) || 1;
+        const fontSize = chars === 20 ? '16pt' : '20pt';
+
+        const pages = Array.from({ length: pageCount }, (_, i) => parsedGenko.slice(i * linesPerPage, (i + 1) * linesPerPage));
+        const shortTitle = (doc.title || '無題').substring(0, 10);
+
+        return (
+            <div className="print-only font-kyokasho">
+                {pages.map((pageLines, pIndex) => (
+                    <div key={pIndex} className="print-page">
+                        <div className="print-layout-grid">
+                            <div className="print-half-grid left-side">
+                                {Array.from({ length: halfLines }).map((_, i) => {
+                                    const actualIndex = i + halfLines;
+                                    const lineData = pageLines[actualIndex] || [];
+                                    return (
+                                        <div key={actualIndex} className="print-line">
+                                            {Array.from({ length: chars }).map((_, j) => (
+                                                <div key={j} className="print-cell" style={{ fontSize }}>
+                                                    {lineData[j] || ''}
+                                                    {j === chars - 1 && lineData.length > chars && (
+                                                        <div className="hanging-chars-print">{lineData.slice(chars).join('')}</div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="print-gyobi-area">
+                                <div className="gyobi-content">
+                                    <div className="gyobi-mark"></div>
+                                    <div className="font-bold">{shortTitle}</div>
+                                    <div className="text-[0.8em] mt-[5mm]">{pIndex + 1}</div>
+                                </div>
+                            </div>
+                            <div className="print-half-grid right-side">
+                                {Array.from({ length: halfLines }).map((_, i) => {
+                                    const lineData = pageLines[i] || [];
+                                    return (
+                                        <div key={i} className="print-line">
+                                            {Array.from({ length: chars }).map((_, j) => (
+                                                <div key={j} className="print-cell" style={{ fontSize }}>
+                                                    {lineData[j] || ''}
+                                                    {j === chars - 1 && lineData.length > chars && (
+                                                        <div className="hanging-chars-print">{lineData.slice(chars).join('')}</div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    // ==========================================
+    // メインアプリケーション
+    // ==========================================
+
+    const App = () => {
+        const [settings, setSettings] = useState({ charsPerLine: 20, kinsokuMode: 'burasagari' });
+        const [doc, setDoc] = useState({ title: '', class: '', name: '', content: '' });
+        const [isInitialLoad, setIsInitialLoad] = useState(true);
+        const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
+
+        const handleChange = (e) => setDoc(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const charCount = (doc.content || '').length;
+
+        const textareaRef = useRef(null);
+        const previewContainerRef = useRef(null);
+        const isSyncingLeft = useRef(false);
+        const isSyncingRight = useRef(false);
+
+        const handleTextareaScroll = useCallback(() => {
+            if (isSyncingRight.current) return;
+            const left = textareaRef.current;
+            const right = previewContainerRef.current;
+            if (!left || !right) return;
+
+            isSyncingLeft.current = true;
+            const scrollableHeight = left.scrollHeight - left.clientHeight;
+            const ratio = scrollableHeight > 0 ? left.scrollTop / scrollableHeight : 0;
+            const scrollableWidth = right.scrollWidth - right.clientWidth;
+            right.scrollLeft = -scrollableWidth * ratio;
+
+            setTimeout(() => { isSyncingLeft.current = false; }, 50);
+        }, []);
+
+        const handlePreviewScroll = useCallback(() => {
+            if (isSyncingLeft.current) return;
+            const left = textareaRef.current;
+            const right = previewContainerRef.current;
+            if (!left || !right) return;
+
+            isSyncingRight.current = true;
+            const scrollableWidth = right.scrollWidth - right.clientWidth;
+            const ratio = scrollableWidth > 0 ? Math.abs(right.scrollLeft) / scrollableWidth : 0;
+            const scrollableHeight = left.scrollHeight - left.clientHeight;
+            left.scrollTop = scrollableHeight * ratio;
+
+            setTimeout(() => { isSyncingRight.current = false; }, 50);
+        }, []);
+
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+
+        useEffect(() => {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    setDoc({ title: data.title||'', class: data.class||'', name: data.name||'', content: data.content||'' });
+                    if (data.charsPerLine) {
+                        setSettings({ charsPerLine: data.charsPerLine, kinsokuMode: data.kinsokuMode || 'burasagari' });
+                    }
+                    Toast.fire({ icon: 'info', title: '前回の続きから始めます' });
+                } catch (e) { console.error('Restore error', e); }
+            }
+            setIsInitialLoad(false);
+        }, []);
+
+        useEffect(() => {
+            if (isInitialLoad) return;
+            const timer = setTimeout(() => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...doc, charsPerLine: settings.charsPerLine, kinsokuMode: settings.kinsokuMode }));
+            }, 1000);
+            return () => clearTimeout(timer);
+        }, [doc, settings, isInitialLoad]);
+
+        const parsedGenko = useGenkoParser(doc, settings);
+
+        const handleNew = () => {
+            Swal.fire({
+                title: '新しく書く',
+                text: '今書いている内容は消えます。よろしいですか？',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'はい、消して新しく書く',
+                cancelButtonText: 'いいえ'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    setDoc({ title: '', class: '', name: '', content: '' });
+                    Toast.fire({ icon: 'success', title: '新しく始めました' });
+                }
+            });
+        };
+
+        const handleDownload = () => {
+            if(!doc.content && !doc.title) {
+                Swal.fire({ icon: 'warning', text: 'まだ何も書いていません' });
+                return;
+            }
+            const textContent = `【題名】${doc.title}\n【学年】${doc.class}\n【氏名】${doc.name}\n---------------------------\n${doc.content}`;
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            let filename = `${doc.title}_${doc.name}`.replace(/[\/\\:*?"<>|]/g, '');
+            if(filename === '_') filename = `作文_${new Date().toLocaleDateString().replace(/\//g,'-')}`;
+            
+            a.href = url;
+            a.download = filename + '.txt';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        const handleLoad = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if(!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const text = event.target.result;
+                    const match = text.match(/【題名】(.*)\n【学年】(.*)\n【氏名】(.*)\n-{10,}\n([\s\S]*)/);
+                    if (match) {
+                        setDoc({ title: match[1].trim(), class: match[2].trim(), name: match[3].trim(), content: match[4].trim() });
+                        Toast.fire({ icon: 'success', title: '読み込みました' });
+                    } else {
+                        Swal.fire({
+                            title: '確認', text: '題名などの情報が見つかりません。すべて「本文」に読み込みますか？',
+                            icon: 'question', showCancelButton: true, confirmButtonText: '読み込む', confirmButtonColor: '#81B29A'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                setDoc(prev => ({ ...prev, content: text }));
+                                Toast.fire({ icon: 'success', title: '読み込みました' });
+                            }
+                        });
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        };
+
+        return (
+            <div className="h-screen w-full flex flex-col font-rounded bg-cork">
+                <Header onSettingClick={() => setSettingsModalOpen(true)} />
+                
+                <main className="flex-1 grid grid-cols-1 md:grid-cols-[380px_1fr] lg:grid-cols-[420px_1fr] md:grid-rows-[1fr_auto] p-3 md:p-5 gap-3 md:gap-5 overflow-hidden h-full no-print">
+                    
+                    {/* 入力エリア */}
+                    <div className="order-1 md:col-start-1 md:row-start-1 bg-paper rounded-2xl md:rounded-[2rem] shadow-card border-[3px] border-white flex flex-col overflow-hidden min-h-[25vh] md:min-h-0 z-10">
+                        <div className="p-4 md:p-5 border-b-2 border-white/60 shrink-0 bg-cream/40">
+                            <div className="text-sm font-bold text-sage mb-3 pt-1 flex items-center gap-1.5">
+                                <Icon name="user" className="w-4 h-4" /> <Rb t="基本情報" r="きほんじょうほう"/>
+                            </div>
+                            <InputField name="title" value={doc.title} onChange={handleChange} placeholder="だいめい" className="w-full mb-3 text-lg" />
+                            <div className="flex gap-3">
+                                <InputField name="class" value={doc.class} onChange={handleChange} placeholder="がくねん" className="w-1/3 text-base" />
+                                <InputField name="name" value={doc.name} onChange={handleChange} placeholder="なまえ" className="flex-1 text-base" />
+                            </div>
+                        </div>
+
+                        <div className="flex-1 relative bg-transparent min-h-[100px]">
+                            <textarea 
+                                ref={textareaRef}
+                                onScroll={handleTextareaScroll}
+                                name="content" value={doc.content} onChange={handleChange}
+                                placeholder="ここをクリックして、さくぶんをかいてください..."
+                                className="w-full h-full resize-none border-none p-4 md:p-6 text-xl focus:outline-none text-bluegrey leading-[2.5rem] bg-transparent hide-scrollbar transition-colors font-kyokasho"
+                                style={{ 
+                                    backgroundImage: 'linear-gradient(to bottom, transparent calc(100% - 2px), rgba(255,255,255,0.8) calc(100% - 2px))',
+                                    backgroundSize: '100% 2.5rem',
+                                    backgroundPosition: '0 1.5rem',
+                                    backgroundAttachment: 'local'
+                                }}
+                            />
+                            <div className="absolute bottom-4 right-4 bg-cream/90 px-4 py-1.5 rounded-full shadow-sm border-2 border-white text-sm font-bold text-terracotta backdrop-blur-sm pointer-events-none">
+                                {charCount.toLocaleString()} <Rb t="文字" r="もじ"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* プレビューエリア */}
+                    <div className="order-2 md:col-start-2 md:row-start-1 md:row-span-2 bg-paper rounded-2xl md:rounded-[2rem] shadow-card border-[3px] border-white flex flex-col overflow-hidden relative min-w-0 min-h-[40vh] md:min-h-0">
+                        <div className="absolute top-3 right-3 md:top-5 md:right-5 z-20">
+                            <button onClick={() => window.print()} className="px-4 py-2.5 rounded-xl font-bold text-white bg-sage hover:bg-sage/90 transition-all active:translate-y-1 shadow-button active:shadow-button-active flex items-center gap-2 leading-none border-2 border-white/20">
+                                <Icon name="printer" className="w-5 h-5 -mt-0.5" /><span className="text-base pt-0.5"><Rb t="印刷" r="いんさつ"/>する</span>
+                            </button>
+                        </div>
+                        <ScalableWrapper scrollContainerRef={previewContainerRef} onScroll={handlePreviewScroll}>
+                            <GenkoPaperPreview parsedGenko={parsedGenko} settings={settings} />
+                        </ScalableWrapper>
+                    </div>
+
+                    {/* ボタンエリア */}
+                    <div className="order-3 md:col-start-1 md:row-start-2 grid grid-cols-2 gap-3 md:gap-4 shrink-0 z-10">
+                        <MainButton color="bluegrey" icon="file-plus" onClick={handleNew}><Rb t="新規" r="しんき"/></MainButton>
+                        <MainButton color="mustard" icon="folder-open" onClick={handleLoad}><Rb t="開" r="ひら"/>く</MainButton>
+                        <MainButton color="terracotta" icon="download" onClick={handleDownload} className="col-span-2 border-2 border-white/20"><Rb t="保存" r="ほぞん"/>する</MainButton>
+                    </div>
+
+                </main>
+
+                {/* 印刷用DOM */}
+                <PrintGenkoView parsedGenko={parsedGenko} settings={settings} doc={doc} />
+
+                {/* 設定モーダル */}
+                <Modal isOpen={isSettingsModalOpen} onClose={() => setSettingsModalOpen(false)} title={<><Rb t="設定" r="せってい"/></>}>
+                    <div className="space-y-8 p-2">
+                        <div>
+                            <h4 className="font-bold text-bluegrey text-[1.2rem] mb-4 border-b-2 border-sage/20 pb-2 flex items-center gap-2">
+                                <Icon name="pen-line" className="w-5 h-5 text-sage"/> <Rb t="用紙" r="ようし"/>の<Rb t="文字数" r="もじすう"/>
+                            </h4>
+                            <div className="space-y-5 pl-2">
+                                <label className="flex items-start gap-4 cursor-pointer group">
+                                    <div className="relative flex items-center justify-center mt-1 shrink-0">
+                                        <input type="radio" name="chars" checked={settings.charsPerLine === 20} onChange={() => setSettings({...settings, charsPerLine: 20})} className="peer appearance-none w-[24px] h-[24px] border-4 border-white shadow-sm rounded-full checked:border-sage transition-all cursor-pointer bg-cream" />
+                                        <div className="absolute w-[10px] h-[10px] bg-sage rounded-full opacity-0 peer-checked:opacity-100 transition-all pointer-events-none"></div>
+                                    </div>
+                                    <span className="font-bold text-bluegrey text-[1.1rem]">20<Rb t="文字" r="もじ"/> × 20<Rb t="行" r="ぎょう"/> (<Rb t="高学年" r="こうがくねん"/>)</span>
+                                </label>
+                                <label className="flex items-start gap-4 cursor-pointer group">
+                                    <div className="relative flex items-center justify-center mt-1 shrink-0">
+                                        <input type="radio" name="chars" checked={settings.charsPerLine === 15} onChange={() => setSettings({...settings, charsPerLine: 15})} className="peer appearance-none w-[24px] h-[24px] border-4 border-white shadow-sm rounded-full checked:border-sage transition-all cursor-pointer bg-cream" />
+                                        <div className="absolute w-[10px] h-[10px] bg-sage rounded-full opacity-0 peer-checked:opacity-100 transition-all pointer-events-none"></div>
+                                    </div>
+                                    <span className="font-bold text-bluegrey text-[1.1rem]">15<Rb t="文字" r="もじ"/> × 16<Rb t="行" r="ぎょう"/> (<Rb t="低学年" r="ていがくねん"/>)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 className="font-bold text-bluegrey text-[1.2rem] mb-4 border-b-2 border-sage/20 pb-2 flex items-center gap-2">
+                                <Icon name="settings" className="w-5 h-5 text-sage"/> <Rb t="禁則処理" r="きんそくしょり"/>
+                            </h4>
+                            <div className="space-y-5 pl-2">
+                                <label className="flex items-start gap-4 cursor-pointer group">
+                                    <div className="relative flex items-center justify-center mt-1 shrink-0">
+                                        <input type="radio" name="kinsoku" checked={settings.kinsokuMode === 'oidashi'} onChange={() => setSettings({...settings, kinsokuMode: 'oidashi'})} className="peer appearance-none w-[24px] h-[24px] border-4 border-white shadow-sm rounded-full checked:border-sage transition-all cursor-pointer bg-cream" />
+                                        <div className="absolute w-[10px] h-[10px] bg-sage rounded-full opacity-0 peer-checked:opacity-100 transition-all pointer-events-none"></div>
+                                    </div>
+                                    <span className="font-bold text-bluegrey text-[1.1rem] leading-relaxed">
+                                        <Rb t="追" r="お"/>い<Rb t="出" r="だ"/>し <span className="font-medium text-bluegrey/70 text-[1rem]">（<Rb t="前行末" r="ぜんぎょうまつ"/>の<Rb t="文字" r="もじ"/>を<Rb t="次行" r="じぎょう"/>に<Rb t="送" r="おく"/>る）</span>
+                                    </span>
+                                </label>
+                                <label className="flex items-start gap-4 cursor-pointer group">
+                                    <div className="relative flex items-center justify-center mt-1 shrink-0">
+                                        <input type="radio" name="kinsoku" checked={settings.kinsokuMode === 'burasagari'} onChange={() => setSettings({...settings, kinsokuMode: 'burasagari'})} className="peer appearance-none w-[24px] h-[24px] border-4 border-white shadow-sm rounded-full checked:border-sage transition-all cursor-pointer bg-cream" />
+                                        <div className="absolute w-[10px] h-[10px] bg-sage rounded-full opacity-0 peer-checked:opacity-100 transition-all pointer-events-none"></div>
+                                    </div>
+                                    <span className="font-bold text-bluegrey text-[1.1rem] leading-relaxed">
+                                        ぶら<Rb t="下" r="さ"/>がり <span className="font-medium text-bluegrey/70 text-[1rem]">（マス<Rb t="外" r="そと"/>に<Rb t="小" r="ちい"/>さく<Rb t="表示" r="ひょうじ"/>）</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-6">
+                            <MainButton color="bluegrey" onClick={() => setSettingsModalOpen(false)} className="px-8 border-2 border-white/10">
+                                <Rb t="保存" r="ほぞん"/>して<Rb t="閉" r="と"/>じる
+                            </MainButton>
+                        </div>
+                    </div>
+                </Modal>
+            </div>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
