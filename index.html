@@ -191,7 +191,7 @@
         );
     }
 
-    // メインボタンコンポーネント（少し小さく調整）
+    // メインボタンコンポーネント（少し小さめ）
     const MainButton = ({ onClick, color = 'sage', icon, children, className = '' }) => {
         const colorClass = 
             color === 'terracotta' ? 'bg-terracotta text-white' : 
@@ -234,7 +234,7 @@
       );
     };
 
-    // プレビュー領域を画面サイズ（幅・高さ）に合わせて自動縮小し、右詰めで表示するラッパー
+    // プレビュー領域を画面の高さに合わせて縮小し、横スクロールを可能にするラッパー（元の仕様）
     const ScalableWrapper = ({ children, scrollContainerRef, onScroll }) => {
         const wrapperRef = useRef(null);
         const containerRef = useRef(null); 
@@ -246,24 +246,24 @@
         let reqId;
         const updateScale = () => {
           if (!containerRef.current || !contentRef.current) return;
-          const availableW = containerRef.current.clientWidth - 16;
-          const availableH = containerRef.current.clientHeight - 16;
+          const availableH = containerRef.current.clientHeight - 40; // 上下余白
           const firstChild = contentRef.current.firstElementChild;
           if (!firstChild) return;
           
           const originalW = firstChild.offsetWidth; 
           const originalH = firstChild.offsetHeight;
 
-          if (originalW > 10 && originalH > 10 && availableW > 10 && availableH > 10) {
-            const scaleW = availableW / originalW;
-            const scaleH = availableH / originalH;
-            let s = Math.min(scaleW, scaleH);
+          if (originalH > 10 && availableH > 10) {
+            // 幅は無視して、高さだけを基準にスケールを決定（横スクロールさせるため）
+            let s = availableH / originalH;
             
             if (s > 3) s = 3; 
             if (s < 0.1) s = 0.1;
             
             setDims(prev => {
-              if (prev.w !== originalW || prev.h !== originalH) return { w: originalW, h: originalH };
+              if (prev.w !== originalW || prev.h !== originalH) {
+                return { w: originalW, h: originalH };
+              }
               return prev;
             });
             setScale(s);
@@ -286,12 +286,19 @@
         const handleWheel = (e) => {
           if (e.ctrlKey || e.shiftKey || e.altKey) return;
           e.preventDefault(); 
+          
           let scrollAmount = 0;
-          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) scrollAmount = -e.deltaY;
-          else scrollAmount = e.deltaX;
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+            scrollAmount = -e.deltaY;
+          } else {
+            scrollAmount = e.deltaX;
+          }
 
-          if (typeof container.scrollBy === 'function') container.scrollBy({ left: scrollAmount, behavior: 'auto' });
-          else container.scrollLeft += scrollAmount;
+          if (typeof container.scrollBy === 'function') {
+            container.scrollBy({ left: scrollAmount, behavior: 'auto' });
+          } else {
+            container.scrollLeft += scrollAmount;
+          }
         };
 
         wrapper.addEventListener('wheel', handleWheel, { passive: false });
@@ -300,11 +307,16 @@
 
       return (
         <div ref={wrapperRef} className="absolute inset-0 bg-transparent overflow-hidden">
-          <div ref={(el) => { containerRef.current = el; if (scrollContainerRef) scrollContainerRef.current = el; }} 
-               onScroll={onScroll}
-               className="w-full h-full overflow-auto relative hide-scrollbar p-2 md:p-4" 
-               style={{ direction: 'rtl' }}>
-            <div style={{ direction: 'ltr' }} className="flex-shrink-0 w-max h-max">
+          <div 
+            ref={(el) => {
+              containerRef.current = el;
+              if (scrollContainerRef) scrollContainerRef.current = el;
+            }} 
+            onScroll={onScroll}
+            className="w-full h-full overflow-auto relative hide-scrollbar p-5" 
+            style={{ direction: 'rtl' }}>
+            {/* mx-autoを戻し、文字数が少ない時は中央付近に配置されるようにする */}
+            <div style={{ direction: 'ltr' }} className="flex-shrink-0 w-max h-max mx-auto">
               <div style={{ width: dims.w > 0 ? dims.w * scale : '100%', height: dims.h > 0 ? dims.h * scale : '100%', position: 'relative' }}>
                 <div ref={contentRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top right', position: 'absolute', top: 0, right: 0 }} className="shadow-card rounded-md bg-paper inline-block border-2 border-white">
                   {children}
@@ -469,7 +481,7 @@
         const renderLen = pageCount * linesPerPage;
 
         return (
-            <div className="flex flex-row-reverse p-3 md:p-4 gap-4 font-kyokasho w-max text-bluegrey">
+            <div className="flex flex-row-reverse p-10 gap-8 font-kyokasho w-max text-bluegrey">
                 <div className="flex flex-row-reverse border-y border-genkoStrong bg-white/40">
                     {Array.from({ length: renderLen }).map((_, i) => {
                         return (
@@ -570,6 +582,7 @@
         const isSyncingLeft = useRef(false);
         const isSyncingRight = useRef(false);
 
+        // 入力時のスクロール同期（元の仕様を維持）
         const handleTextareaScroll = useCallback(() => {
             if (isSyncingRight.current) return;
             const left = textareaRef.current;
@@ -704,7 +717,6 @@
                             <div className="text-sm font-bold text-sage mb-3 pt-1 flex items-center gap-1.5">
                                 <Icon name="user" className="w-4 h-4" /> <Rb t="基本情報" r="きほんじょうほう"/>
                             </div>
-                            {/* 「だいめい」「がくねん・くみ」「なまえ」をすべて縦並びに変更 */}
                             <InputField name="title" value={doc.title} onChange={handleChange} placeholder="だいめい" className="w-full mb-2 text-lg" />
                             <InputField name="class" value={doc.class} onChange={handleChange} placeholder="がくねん・くみ" className="w-full mb-2 text-base" />
                             <InputField name="name" value={doc.name} onChange={handleChange} placeholder="なまえ" className="w-full text-base" />
@@ -742,7 +754,7 @@
                         </ScalableWrapper>
                     </div>
 
-                    {/* ボタンエリア（ボタンのサイズを少し小さく調整） */}
+                    {/* ボタンエリア */}
                     <div className="order-3 md:col-start-1 md:row-start-2 grid grid-cols-2 gap-3 md:gap-4 shrink-0 z-10">
                         <MainButton color="bluegrey" icon="file-plus" onClick={handleNew}><Rb t="新規" r="しんき"/></MainButton>
                         <MainButton color="mustard" icon="folder-open" onClick={handleLoad}><Rb t="開" r="ひら"/>く</MainButton>
