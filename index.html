@@ -3,24 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="favicon.png">
   <title>オンライン原稿用紙 Lite</title>
 
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="icon" href="favicon.png">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
   
-  <!-- React & Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- SweetAlert2 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <script>
@@ -143,10 +137,10 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
-    const STORAGE_KEY = 'genko_lite_v3';
+    const STORAGE_KEY = 'genko_lite_v4';
 
     // ==========================================
-    // アイコンコンポーネント (Lucide互換SVG)
+    // アイコンコンポーネント
     // ==========================================
     const Icon = ({ name, className = "w-6 h-6" }) => {
         const strokeW = "2.5";
@@ -167,14 +161,12 @@
     // ユーティリティ・共通コンポーネント
     // ==========================================
 
-    // 小学生向けルビコンポーネント
     const Rb = ({ t, r }) => (
       <ruby className="relative inline-block text-center align-baseline leading-none">
         {t}<rt className="absolute bottom-full left-1/2 -translate-x-1/2 whitespace-nowrap text-[0.6em] text-inherit opacity-70 pointer-events-none mb-[0.1em] font-medium tracking-normal" style={{ letterSpacing: 'normal' }}>{r}</rt>
       </ruby>
     );
 
-    // 入力フィールド（全角数字を自動で半角にする）
     const InputField = ({ value, onChange, name, placeholder, className = '' }) => {
         const handleChange = (e) => {
             const val = e.target.value.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
@@ -192,7 +184,6 @@
         );
     }
 
-    // メインボタンコンポーネント（少し小さめ）
     const MainButton = ({ onClick, color = 'sage', icon, children, className = '' }) => {
         const colorClass = 
             color === 'terracotta' ? 'bg-terracotta text-white' : 
@@ -211,7 +202,6 @@
         );
     }
 
-    // 共通モーダルコンポーネント
     const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-md' }) => {
       useEffect(() => {
         const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
@@ -235,7 +225,6 @@
       );
     };
 
-    // プレビュー領域を画面の高さに合わせて縮小し、横スクロールを可能にするラッパー（元の仕様）
     const ScalableWrapper = ({ children, scrollContainerRef, onScroll }) => {
         const wrapperRef = useRef(null);
         const containerRef = useRef(null); 
@@ -247,7 +236,7 @@
         let reqId;
         const updateScale = () => {
           if (!containerRef.current || !contentRef.current) return;
-          const availableH = containerRef.current.clientHeight - 40; // 上下余白
+          const availableH = containerRef.current.clientHeight - 40; 
           const firstChild = contentRef.current.firstElementChild;
           if (!firstChild) return;
           
@@ -255,16 +244,12 @@
           const originalH = firstChild.offsetHeight;
 
           if (originalH > 10 && availableH > 10) {
-            // 幅は無視して、高さだけを基準にスケールを決定（横スクロールさせるため）
             let s = availableH / originalH;
-            
             if (s > 3) s = 3; 
             if (s < 0.1) s = 0.1;
             
             setDims(prev => {
-              if (prev.w !== originalW || prev.h !== originalH) {
-                return { w: originalW, h: originalH };
-              }
+              if (prev.w !== originalW || prev.h !== originalH) return { w: originalW, h: originalH };
               return prev;
             });
             setScale(s);
@@ -309,14 +294,10 @@
       return (
         <div ref={wrapperRef} className="absolute inset-0 bg-transparent overflow-hidden">
           <div 
-            ref={(el) => {
-              containerRef.current = el;
-              if (scrollContainerRef) scrollContainerRef.current = el;
-            }} 
+            ref={(el) => { containerRef.current = el; if (scrollContainerRef) scrollContainerRef.current = el; }} 
             onScroll={onScroll}
             className="w-full h-full overflow-auto relative hide-scrollbar p-5" 
             style={{ direction: 'rtl' }}>
-            {/* mx-autoを戻し、文字数が少ない時は中央付近に配置されるようにする */}
             <div style={{ direction: 'ltr' }} className="flex-shrink-0 w-max h-max mx-auto">
               <div style={{ width: dims.w > 0 ? dims.w * scale : '100%', height: dims.h > 0 ? dims.h * scale : '100%', position: 'relative' }}>
                 <div ref={contentRef} style={{ transform: `scale(${scale})`, transformOrigin: 'top right', position: 'absolute', top: 0, right: 0 }} className="shadow-card rounded-md bg-paper inline-block border-2 border-white">
@@ -330,7 +311,7 @@
     };
 
     // ==========================================
-    // カスタムフック (原稿用紙ロジック)
+    // カスタムフック (原稿用紙ロジック - 【修正版】)
     // ==========================================
 
     const useGenkoParser = (doc, settings) => {
@@ -339,87 +320,96 @@
             const kinsokuMode = settings.kinsokuMode || 'burasagari';
             const lines = [];
             
-            const titleParas = (doc.title || '').split('\n');
-            titleParas.forEach(p => {
-                if(!p && lines.length === 0) return;
-                let line = Array(chars).fill('');
-                let cursor = 2;
-                p.split('').forEach(c => {
-                    if(cursor >= chars) { lines.push(line); line = Array(chars).fill(''); cursor = 0; }
-                    line[cursor++] = c;
+            // 題名（改行をなくす修正）
+            if (doc.title) {
+                const titleParas = doc.title.split('\n');
+                titleParas.forEach(p => {
+                    let line = Array(chars).fill('');
+                    let cursor = 2; // 上から3マス目から開始
+                    p.split('').forEach(c => {
+                        if(cursor >= chars) { lines.push(line); line = Array(chars).fill(''); cursor = 0; }
+                        line[cursor++] = c;
+                    });
+                    lines.push(line);
                 });
-                lines.push(line);
-            });
-            if(lines.length === 0 || (doc.title && lines.length > 0)) lines.push(Array(chars).fill(''));
+            }
 
+            // 学年・氏名（改行をなくす修正）
             const footerText = (`${doc.class || ''} ${doc.name || ''}`).trim();
             if(footerText) {
                 let line = Array(chars).fill('');
-                let start = Math.max(0, chars - footerText.length - 1);
+                let start = Math.max(0, chars - footerText.length - 1); // 下寄せ
                 footerText.split('').forEach((c, i) => { if(start + i < chars) line[start + i] = c; });
                 lines.push(line);
-                lines.push(Array(chars).fill(''));
             }
 
+            // 本文
             const noStart = ['、','。','」','』','）','っ','ゃ','ゅ','ょ','ッ','ャ','ュ','ョ','ー',',','.','」','』',']','}','>','ぁ','ぃ','ぅ','ぇ','ぉ','ァ','ィ','ゥ','ェ','ォ','ヮ','ヵ','ヶ','・','？','！','‼','⁇','々'];
             const noEnd = ['「', '『', '（', '(', '[', '{', '<', '【', '〔', '［'];
             const compressionPairs = ['。」', '。』', '。）', '、」', '、』', '、）', '！』', '！」', '？』', '？」'];
             
-            (doc.content || '').split('\n').forEach(p => {
-                if(!p) { lines.push(Array(chars).fill('')); return; }
-                let line = [];
-                const pChars = p.split('');
-                let i = 0;
-                
-                while(i < pChars.length) {
-                    let char = pChars[i];
-                    if (i < pChars.length - 1) {
-                        const pair = char + pChars[i+1];
-                        if (compressionPairs.includes(pair)) { char = pair; i++; }
-                    }
-                    if (line.length === chars - 1) {
-                        if (noEnd.includes(char.charAt(0))) {
-                            lines.push(line); line = []; line.push(char); i++; continue;
+            if (doc.content) {
+                doc.content.split('\n').forEach(p => {
+                    if(!p) { lines.push(Array(chars).fill('')); return; }
+                    let line = [];
+                    const pChars = p.split('');
+                    let i = 0;
+                    
+                    while(i < pChars.length) {
+                        let char = pChars[i];
+                        if (i < pChars.length - 1) {
+                            const pair = char + pChars[i+1];
+                            if (compressionPairs.includes(pair)) { char = pair; i++; }
+                        }
+                        if (line.length === chars - 1) {
+                            if (noEnd.includes(char.charAt(0))) {
+                                lines.push(line); line = []; line.push(char); i++; continue;
+                            }
+                        }
+                        
+                        line.push(char); i++;
+                        
+                        if (line.length >= chars) {
+                            if (kinsokuMode === 'oidashi') {
+                                if (i < pChars.length) {
+                                    let nextUnit = pChars[i];
+                                    if (i < pChars.length - 1) {
+                                        const nextPair = pChars[i] + pChars[i+1];
+                                        if (compressionPairs.includes(nextPair)) nextUnit = nextPair;
+                                    }
+                                    if (noStart.includes(nextUnit.charAt(0))) {
+                                        const kicked = line.pop();
+                                        lines.push(line);
+                                        line = [kicked];
+                                        continue;
+                                    }
+                                }
+                                lines.push(line); line = [];
+                            } else {
+                                while (i < pChars.length) {
+                                    let nextStartChar = pChars[i];
+                                    let nextUnit = nextStartChar;
+                                    let step = 1;
+                                    if (i < pChars.length - 1) {
+                                        const nextPair = nextStartChar + pChars[i+1];
+                                        if (compressionPairs.includes(nextPair)) { nextUnit = nextPair; step = 2; }
+                                    }
+                                    if (noStart.includes(nextUnit.charAt(0))) {
+                                        line.push(nextUnit); i += step;
+                                    } else { break; }
+                                }
+                                lines.push(line); line = [];
+                            }
                         }
                     }
-                    
-                    line.push(char); i++;
-                    
-                    if (line.length >= chars) {
-                        if (kinsokuMode === 'oidashi') {
-                            if (i < pChars.length) {
-                                let nextUnit = pChars[i];
-                                if (i < pChars.length - 1) {
-                                    const nextPair = pChars[i] + pChars[i+1];
-                                    if (compressionPairs.includes(nextPair)) nextUnit = nextPair;
-                                }
-                                if (noStart.includes(nextUnit.charAt(0))) {
-                                    const kicked = line.pop();
-                                    lines.push(line);
-                                    line = [kicked];
-                                    continue;
-                                }
-                            }
-                            lines.push(line); line = [];
-                        } else {
-                            while (i < pChars.length) {
-                                let nextStartChar = pChars[i];
-                                let nextUnit = nextStartChar;
-                                let step = 1;
-                                if (i < pChars.length - 1) {
-                                    const nextPair = nextStartChar + pChars[i+1];
-                                    if (compressionPairs.includes(nextPair)) { nextUnit = nextPair; step = 2; }
-                                }
-                                if (noStart.includes(nextUnit.charAt(0))) {
-                                    line.push(nextUnit); i += step;
-                                } else { break; }
-                            }
-                            lines.push(line); line = [];
-                        }
-                    }
+                    if(line.length > 0) lines.push(line);
+                });
+            } else {
+                // 完全な空の時だけはマス目を表示するため空行を1行入れる
+                if (!doc.title && !footerText) {
+                    lines.push(Array(chars).fill(''));
                 }
-                if(line.length > 0) lines.push(line);
-            });
+            }
             return lines;
         }, [doc, settings.charsPerLine, settings.kinsokuMode]);
     };
@@ -583,7 +573,6 @@
         const isSyncingLeft = useRef(false);
         const isSyncingRight = useRef(false);
 
-        // 入力時のスクロール同期（元の仕様を維持）
         const handleTextareaScroll = useCallback(() => {
             if (isSyncingRight.current) return;
             const left = textareaRef.current;
